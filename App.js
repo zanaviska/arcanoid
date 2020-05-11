@@ -13,6 +13,7 @@ const {
   event,
   Value,
   Clock,
+  call,
   lessThan,
   greaterThan,
   divide,
@@ -31,7 +32,8 @@ const {
   debug,
   and,
   lessOrEq,
-  greaterOrEq
+  greaterOrEq,
+  not
 } = Animated;
 
 const VELOCITY_THRESHOLD = 0.5;
@@ -70,10 +72,13 @@ class App extends Component {
     {top: 0.525*height, left: 2*(width - blockWidth)/3, backgroundColor: 'blue', width: blockWidth, height: blockHeight},
     {top: 0.525*height, left: (width - blockWidth), backgroundColor: 'red', width: blockWidth, height: blockHeight},
     {top: 0.08*height, width: paddleWidth, height: paddleHeight}
-  ];
+  ]
+  deleted = this.blocks.map(elem => 0)
+  deleted2 = this.blocks.map(() => new Value(0))
   constructor(props) {
     super(props);
-
+    this.state = {};
+    
     const gestureX = new Value(0);
     const state = new Value(-1);
     this._onGestureEvent = event([
@@ -132,6 +137,15 @@ class App extends Component {
       x: new Value(width/2 - 0.015*width),
       y: new Value(height/2 - 0.015*width)
     }
+    const removeElem = (idx) => {
+      if(idx !== 0 && idx !== this.blocks.length-1) {
+        //console.log('revode ' + idx);
+        //const blocks = this.state.blocks.map((elem, i) => {const temp = {}; Object.assign(temp, elem); if(i === idx) temp.deleted = 1; return temp});
+        //this.setState({blocks});
+        this.deleted[idx] = 1;
+        this.forceUpdate();
+      }
+    }
     const moveBallX = (velocity) => {
       const clock = new Clock();
       const dt = divide(diff(clock), 1000);
@@ -145,17 +159,25 @@ class App extends Component {
           cond(and(lessThan(ball.x, 0), lessThan(velocity.x, 0)), set(velocity.x, multiply(velocity.x, -1)))
         ),
         this.blocks.map((elem, idx) => {
-          if(idx === 0) elem.left = myX;
-          if(idx == this.blocks.length-1) elem.left = notMyX;
+          let need = new Value(0);
+          if(idx === 0) elem.left = myX, need = new Value(1);
+          if(idx == this.blocks.length-1) elem.left = notMyX, need = new Value(1);
           return cond(
-            and(greaterOrEq(ball.y, elem.top), lessOrEq(add(ball.y, 0.03*width), elem.top + elem.height)),
+            and(greaterOrEq(ball.y, elem.top), lessOrEq(add(ball.y, 0.03*width), elem.top + elem.height), not(this.deleted2[idx])),
             cond(
               and(lessOrEq(ball.x, elem.left), greaterOrEq(add(ball.x, 0.03*width), elem.left), greaterThan(velocity.x, 0)),
-              set(velocity.x, multiply(velocity.x, -1)),
+              [
+                call([truly], () => removeElem(idx)),
+                cond(not(need), set(this.deleted2[idx], new Value(1))),
+                set(velocity.x, multiply(velocity.x, -1))
+              ],
               cond(
                 and(lessOrEq(ball.x, add(elem.left, elem.width)), greaterOrEq(add(ball.x, 0.03*width), add(elem.left, elem.width)), lessThan(velocity.x, 0)),
-                set(velocity.x, multiply(velocity.x, -1)),
-                0
+                [
+                  call([truly], () => removeElem(idx)),
+                  cond(not(need), set(this.deleted2[idx], new Value(1))),
+                  set(velocity.x, multiply(velocity.x, -1))
+                ]
               )
             ),
             []
@@ -182,18 +204,25 @@ class App extends Component {
           set(velocity.x, multiply(velocity.x, -1)),
         ),
         this.blocks.map((elem, idx) => {
-          //if(idx === 0 || idx == this.blocks.length-1) return [];
-          if(idx === 0) elem.left = myX;
-          if(idx == this.blocks.length-1) elem.left = notMyX;
+          let need = new Value(0);
+          if(idx === 0) elem.left = myX, need = new Value(1);
+          if(idx == this.blocks.length-1) elem.left = notMyX, need = new Value(1);
           return cond(
-            and(greaterOrEq(ball.x, elem.left), lessOrEq(add(ball.x, 0.03*width), add(elem.left, elem.width))),
+            and(greaterOrEq(ball.x, elem.left), lessOrEq(add(ball.x, 0.03*width), add(elem.left, elem.width)), not(this.deleted2[idx])),
             cond(
               and(lessOrEq(ball.y, elem.top), greaterOrEq(add(ball.y, 0.03*width), elem.top), greaterThan(velocity.y, 0)),
-              set(velocity.y, multiply(velocity.y, -1)),
+              [
+                call([truly], () => removeElem(idx)),
+                cond(not(need), set(this.deleted2[idx], new Value(1))),
+                set(velocity.y, multiply(velocity.y, -1))
+              ],
               cond(
                 and(lessOrEq(ball.y, elem.top + elem.height), greaterOrEq(add(ball.y, 0.03*width), elem.top+elem.height), lessThan(velocity.y, 0)),
-                set(velocity.y, multiply(velocity.y, -1)),
-                0
+                [
+                  call([truly], () => removeElem(idx)),
+                  cond(not(need), set(this.deleted2[idx], new Value(1))),
+                  set(velocity.y, multiply(velocity.y, -1))
+                ]
               )
             ),
             []
@@ -217,7 +246,7 @@ class App extends Component {
         >
           <Animated.View style={styles.hor}>
             {
-              this.blocks.map((elem, idx) => (
+              /*this.blocks.map((elem, idx) => (
                 idx === 0 || idx == this.blocks.length-1
                 ?
                   <View style={styles.paddleSpace} key={idx}>
@@ -232,14 +261,45 @@ class App extends Component {
                     />
                   </View>
                 :
+                  
                   <View 
                     key={idx} 
                     style={[
                       styles.block,
+                      {
+                        opacity: elem.deleted
+                      },
                       elem
                     ]}
                   />
-              ))
+              ))*/
+              this.blocks.reduce((acc, cur, idx) => {
+                if(idx === 0 || idx === this.blocks.length-1)
+                  acc.push(
+                    <View style={styles.paddleSpace} key={idx}>
+                      <Animated.View 
+                        style={[
+                          styles.box,
+                          {
+                            transform: [{ translateX: (idx === 0 ? this.myPaddleX : 50) }],
+                            backgroundColor: (idx === 0 ? '#FF4400' : '#0064FF')
+                          }
+                        ]}
+                      />
+                    </View>
+                  )
+                else if(!this.deleted[idx])
+                  acc.push(
+                    <View 
+                      key={idx}
+                      style={[
+                        styles.block,
+                        cur
+                      ]}
+                    />
+                  )
+                return acc;
+              }, [])
             }
             <Animated.View 
               style={[
