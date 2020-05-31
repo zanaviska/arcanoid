@@ -6,7 +6,7 @@ global.Buffer = global.Buffer || require('buffer').Buffer;
 let settings = {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
-    ip: '172.24.237.119',
+    ip: '172.30.160.22',
     port: 35662
 }
 
@@ -57,15 +57,7 @@ const sendReq = (param, callback, delay = 300) => {
     callback,
     buf,
     date
-  })
-  /*let cnt = 0;
-  client.on('message',(msg, info) => callback(JSON.parse(msg.toString()), info));
-  setInterval(() => {
-    console.log(param);
-    const buf = Buffer(param);
-    client.send(buf, 0, buf.length, settings.port, settings.ip, function(err) {})
-    cnt++;
-  }, 3000)*/
+  })  
 }
 
 const clearPending = () => {

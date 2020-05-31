@@ -4,8 +4,9 @@ import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import Animated, { block } from 'react-native-reanimated';
 //import dgram from 'react-native-udp';
 import dgram from 'dgram';
+import Modal from 'react-native-modal';
 
-import {settings} from './settings';
+import {settings, account} from './settings';
 
 let {width, height} = settings;
 
@@ -45,11 +46,16 @@ let paddleHeight = height*0.04;
 let blockWidth = 0.2*width;
 let blockHeight = 0.05*height;
 
-const client = dgram.createSocket("udp4");
 
 class App extends Component {
+  port = this.props.route.params.port;
   constructor(props) {
+    //const client = dgram.createSocket("udp4");
     super(props);
+    this.client = dgram.createSocket("udp4");
+    this.client.on('message', (msg, info) => {
+      console.log(JSON.parse(msg.toString()));
+    })
     width = settings.width;
     height = settings.height;
     VELOCITY = width/2;
@@ -87,7 +93,7 @@ class App extends Component {
     ]
     this.deleted = this.blocks.map(elem => 0);
     this.deleted2 = this.blocks.map(() => new Value(0));
-    this.state = {};
+    this.state = {reverseTimer: 3};
     console.log(settings);
     const buf = Buffer('excellent!')
     /*client.send(buf, 0, buf.length, port, ip, function(err) {
@@ -103,6 +109,7 @@ class App extends Component {
         },
       },
     ]);
+    const myNotAnim = 0.5;
     const myX = new Value(width/2 - paddleWidth/2);
     const notMyX = new Value(50);
     const movePaddle = (gestureX, gestureState) => {
@@ -122,7 +129,7 @@ class App extends Component {
           cond(greaterThan(position, dest), -VELOCITY, 0)
         )
       )
-
+      //setInterval(() => {console.log(myNotAnim)}, 500);
       return cond(
         or(eq(gestureState, State.ACTIVE), eq(gestureState, State.BEGAN)),
         [
@@ -250,9 +257,24 @@ class App extends Component {
     this.myPaddleX = movePaddle(gestureX, state)
     this.blocks[0].left = this.myPaddleX;
   }
+  componentDidMount() {
+    console.log(account)
+    const reverseTimeProc = setInterval(() => {
+      this.setState({reverseTimer: this.state.reverseTimer-1}, () => {
+        if(this.state.reverseTimer === 0) clearInterval(reverseTimeProc);
+        const buf = Buffer('id ' + account.id + ' dest 0.5 pos 0.5 date ' + Date.now());
+        this.client.send(buf, 0, buf.length, this.port, settings.ip, function(err) {});
+      });
+    }, 1000)
+  }
   render() {
     return (
       <View style={styles.container}>
+        <Modal isVisible={!!this.state.reverseTimer}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{fontSize: 30}}>{this.state.reverseTimer}</Text>
+          </View>
+        </Modal>
         <PanGestureHandler
           onGestureEvent={this._onGestureEvent}
           onHandlerStateChange={this._onGestureEvent}
