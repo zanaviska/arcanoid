@@ -6,7 +6,7 @@ global.Buffer = global.Buffer || require('buffer').Buffer;
 let settings = {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
-    ip: '172.30.160.22',
+    ip: '172.30.172.102',
     port: 35662
 }
 

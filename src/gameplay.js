@@ -53,9 +53,7 @@ class App extends Component {
     //const client = dgram.createSocket("udp4");
     super(props);
     this.client = dgram.createSocket("udp4");
-    this.client.on('message', (msg, info) => {
-      console.log(JSON.parse(msg.toString()));
-    })
+    
     width = settings.width;
     height = settings.height;
     VELOCITY = width/2;
@@ -69,14 +67,6 @@ class App extends Component {
       {top: 0.225*height, left: (width - blockWidth)/3, backgroundColor: 'blue', width: blockWidth, height: blockHeight},
       {top: 0.225*height, left: 2*(width - blockWidth)/3, backgroundColor: 'red', width: blockWidth, height: blockHeight},
       {top: 0.225*height, left: (width - blockWidth), backgroundColor: 'blue', width: blockWidth, height: blockHeight},
-      {top: 0.725*height, left: 0, backgroundColor: 'blue', width: blockWidth, height: blockHeight},
-      {top: 0.725*height, left: (width - blockWidth)/3, backgroundColor: 'red', width: blockWidth, height: blockHeight},
-      {top: 0.725*height, left: 2*(width - blockWidth)/3, backgroundColor: 'blue', width: blockWidth, height: blockHeight},
-      {top: 0.725*height, left: (width - blockWidth), backgroundColor: 'red', width: blockWidth, height: blockHeight},
-      {top: 0.625*height, left: 0, backgroundColor: 'red', width: blockWidth, height: blockHeight},
-      {top: 0.625*height, left: (width - blockWidth)/3, backgroundColor: 'blue', width: blockWidth, height: blockHeight},
-      {top: 0.625*height, left: 2*(width - blockWidth)/3, backgroundColor: 'red', width: blockWidth, height: blockHeight},
-      {top: 0.625*height, left: (width - blockWidth), backgroundColor: 'blue', width: blockWidth, height: blockHeight},
       {top: 0.325*height, left: 0, backgroundColor: 'blue', width: blockWidth, height: blockHeight},
       {top: 0.325*height, left: (width - blockWidth)/3, backgroundColor: 'red', width: blockWidth, height: blockHeight},
       {top: 0.325*height, left: 2*(width - blockWidth)/3, backgroundColor: 'blue', width: blockWidth, height: blockHeight},
@@ -89,16 +79,20 @@ class App extends Component {
       {top: 0.525*height, left: (width - blockWidth)/3, backgroundColor: 'red', width: blockWidth, height: blockHeight},
       {top: 0.525*height, left: 2*(width - blockWidth)/3, backgroundColor: 'blue', width: blockWidth, height: blockHeight},
       {top: 0.525*height, left: (width - blockWidth), backgroundColor: 'red', width: blockWidth, height: blockHeight},
+      {top: 0.625*height, left: 0, backgroundColor: 'red', width: blockWidth, height: blockHeight},
+      {top: 0.625*height, left: (width - blockWidth)/3, backgroundColor: 'blue', width: blockWidth, height: blockHeight},
+      {top: 0.625*height, left: 2*(width - blockWidth)/3, backgroundColor: 'red', width: blockWidth, height: blockHeight},
+      {top: 0.625*height, left: (width - blockWidth), backgroundColor: 'blue', width: blockWidth, height: blockHeight},
+      {top: 0.725*height, left: 0, backgroundColor: 'blue', width: blockWidth, height: blockHeight},
+      {top: 0.725*height, left: (width - blockWidth)/3, backgroundColor: 'red', width: blockWidth, height: blockHeight},
+      {top: 0.725*height, left: 2*(width - blockWidth)/3, backgroundColor: 'blue', width: blockWidth, height: blockHeight},
+      {top: 0.725*height, left: (width - blockWidth), backgroundColor: 'red', width: blockWidth, height: blockHeight},
       {top: 0.08*height, width: paddleWidth, height: paddleHeight}
     ]
+    this.serverBlocks = 16777215;
     this.deleted = this.blocks.map(elem => 0);
     this.deleted2 = this.blocks.map(() => new Value(0));
-    this.state = {reverseTimer: 3};
-    console.log(settings);
-    const buf = Buffer('excellent!')
-    /*client.send(buf, 0, buf.length, port, ip, function(err) {
-      if (err) throw err
-    })*/
+    this.state = {reverseTimer: 3, enemy: 0.5, date: 0};
     const gestureX = new Value(0);
     const state = new Value(-1);
     this._onGestureEvent = event([
@@ -109,9 +103,28 @@ class App extends Component {
         },
       },
     ]);
-    const myNotAnim = 0.5;
     const myX = new Value(width/2 - paddleWidth/2);
-    const notMyX = new Value(50);
+    this.notMyX = new Value(width/2 - paddleWidth/2);
+    this.queuedNode = []
+    this.client.on('message', (msg, info) => {
+      const obj = JSON.parse(msg.toString())
+      console.log(obj);
+      for(let i = 0; obj.blocks != this.serverBlocks; i++) 
+        if(obj.blocks&(1<<i) - this.serverBlocks&(1<<i) !== 0)
+          if(!obj.blocks&(1<<i)) {
+            this.deleted[i+1] = 1;
+            this.serverBlocks ^= (1<<i);
+            console.log(obj.blocks, this.serverBlocks, i);
+            this.queuedNode.push({node: i+1, value: 1});
+          } else {
+            this.deleted[i+1] = 0;
+            this.queuedNode.push({node: i+1, value: 0});
+            this.serverBlocks |= (1<<i);
+            console.log(obj.blocks&(1<<i), this.serverBlocks&(1<<i), obj.blocks, this.serverBlocks, i, '!');
+          }
+        
+      this.setState({enemy: obj.pos, date: obj.date});
+    })
     const movePaddle = (gestureX, gestureState) => {
       const position = new Value(width/2 - paddleWidth/2);
       const velocity = new Value(0);
@@ -139,7 +152,7 @@ class App extends Component {
           set(dest, min(dest, width-paddleWidth)),
           move(position, dest, velocity),
           
-          //call([dest, position], ([dest, pos]) => {const buf = Buffer(`${dest/width} ${pos/width} ${Date.now()}`); client.send(buf, 0, buf.length, port, ip, function(err) {});}),
+          call([dest, position], ([dest, pos]) => {const buf = Buffer(`id ${account.id} dest ${(dest+paddleWidth/2)/width} pos ${(pos+paddleWidth/2)/width} date ${Date.now()}`); this.client.send(buf, 0, buf.length, this.port, settings.ip, function(err) {});}),
           cond(lessThan(abs(sub(position, dest)), VELOCITY_THRESHOLD), stopClock(clock)),
           set(position, add(position, cond(lessThan(abs(dp), abs(sub(dest, position))), dp, sub(dest, position)))),
           set(myX, position),
@@ -153,8 +166,8 @@ class App extends Component {
       )
     }
     let ballVelocity = {
-      x: new Value(width/1.2),
-      y: new Value(width/1.2)
+      x: new Value(width*0.8),
+      y: new Value(height*0.4)
     }
     let ball = {
       x: new Value(width/2 - 0.015*width),
@@ -163,6 +176,7 @@ class App extends Component {
     const removeElem = (idx) => {
       if(idx !== 0 && idx !== this.blocks.length-1) {
         this.deleted[idx] = 1;
+        this.serverBlocks -= 1<<(idx-1);
         this.forceUpdate();
       }
     }
@@ -181,7 +195,7 @@ class App extends Component {
         this.blocks.map((elem, idx) => {
           let need = new Value(0);
           if(idx === 0) elem.left = myX, need = new Value(1);
-          if(idx == this.blocks.length-1) elem.left = notMyX, need = new Value(1);
+          if(idx == this.blocks.length-1) elem.left = this.notMyX, need = new Value(1);
           return cond(
             and(greaterOrEq(ball.y, elem.top), lessOrEq(add(ball.y, 0.03*width), elem.top + elem.height), not(this.deleted2[idx])),
             cond(
@@ -226,7 +240,7 @@ class App extends Component {
         this.blocks.map((elem, idx) => {
           let need = new Value(0);
           if(idx === 0) elem.left = myX, need = new Value(1);
-          if(idx == this.blocks.length-1) elem.left = notMyX, need = new Value(1);
+          if(idx == this.blocks.length-1) elem.left = this.notMyX, need = new Value(1);
           return cond(
             and(greaterOrEq(ball.x, elem.left), lessOrEq(add(ball.x, 0.03*width), add(elem.left, elem.width)), not(this.deleted2[idx])),
             cond(
@@ -270,6 +284,13 @@ class App extends Component {
   render() {
     return (
       <View style={styles.container}>
+        <Animated.Code 
+          key={this.state.date}
+          exec={block([
+            set(this.notMyX, this.state.enemy*width-paddleWidth/2),
+            this.queuedNode.splice(0).map(elem => set(this.deleted2[elem.node], new Animated.Value(elem.value)))
+          ])}
+        />
         <Modal isVisible={!!this.state.reverseTimer}>
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <Text style={{fontSize: 30}}>{this.state.reverseTimer}</Text>
@@ -289,7 +310,7 @@ class App extends Component {
                         style={[
                           styles.box,
                           {
-                            transform: [{ translateX: (idx === 0 ? this.myPaddleX : 50) }],
+                            transform: [{ translateX: (idx === 0 ? this.myPaddleX : this.state.enemy*width-paddleWidth/2) }],
                             backgroundColor: (idx === 0 ? '#FF4400' : '#0064FF')
                           }
                         ]}
