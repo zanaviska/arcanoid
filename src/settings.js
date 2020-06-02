@@ -6,7 +6,7 @@ global.Buffer = global.Buffer || require('buffer').Buffer;
 let settings = {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
-    ip: '172.30.172.102',
+    ip: '192.168.117.41',
     port: 35662
 }
 
@@ -67,4 +67,13 @@ const clearPending = () => {
   pending = [];
 }
 
-export {settings, storeData, getData, sendReq, account, clearPending};
+const generate = [...new Array(1<<12)].map((elem, idx) => {
+  let res = 0;
+  while(idx != 0) {
+    res = 2*res + idx&1;
+    idx = ~~(idx/2);
+  }
+  return res;
+})
+
+export {settings, storeData, getData, sendReq, account, clearPending, generate};

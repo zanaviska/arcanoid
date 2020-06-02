@@ -6,7 +6,7 @@ import Animated, { block } from 'react-native-reanimated';
 import dgram from 'dgram';
 import Modal from 'react-native-modal';
 
-import {settings, account} from './settings';
+import {settings, account, generate} from './settings';
 
 let {width, height} = settings;
 
@@ -103,27 +103,46 @@ class App extends Component {
         },
       },
     ]);
+    let ballVelocity = {
+      x: new Value(width*0.8),
+      y: new Value(height*0.4)
+    }
+    let ball = {
+      x: new Value(width/2 - 0.015*width),
+      y: new Value(height/2 - 0.015*width)
+    }
     const myX = new Value(width/2 - paddleWidth/2);
     this.notMyX = new Value(width/2 - paddleWidth/2);
-    this.queuedNode = []
+    this.queuedNode = [];
+    let lastUpdate = 0;
     this.client.on('message', (msg, info) => {
       const obj = JSON.parse(msg.toString())
-      console.log(obj);
+      if(lastUpdate > obj.date) return;
+      lastUpdate = obj.date
+      if(account.id === 1) console.log(obj);
+      ball.x.setValue(obj.x*width - 0.015*width);
+      ball.y.setValue(obj.y*height - 0.015*width);
+      ballVelocity.x.setValue(obj.vx*width);
+      ballVelocity.y.setValue(obj.vy*height);
+      const oldBlocks = this.serverBlocks;
       for(let i = 0; obj.blocks != this.serverBlocks; i++) 
-        if(obj.blocks&(1<<i) - this.serverBlocks&(1<<i) !== 0)
-          if(!obj.blocks&(1<<i)) {
+        if((obj.blocks&(1<<i)) - (this.serverBlocks&(1<<i)) !== 0)
+          if(!(obj.blocks&(1<<i))) {
             this.deleted[i+1] = 1;
+            this.deleted2[i+1].setValue(1);
             this.serverBlocks ^= (1<<i);
-            console.log(obj.blocks, this.serverBlocks, i);
+            console.log(obj.blocks, this.serverBlocks, i, this.deleted2.length);
             this.queuedNode.push({node: i+1, value: 1});
           } else {
             this.deleted[i+1] = 0;
+            this.deleted2[i+1].setValue(0);
             this.queuedNode.push({node: i+1, value: 0});
             this.serverBlocks |= (1<<i);
-            console.log(obj.blocks&(1<<i), this.serverBlocks&(1<<i), obj.blocks, this.serverBlocks, i, '!');
+            console.log(obj.blocks, this.serverBlocks, i, '!', this.deleted2.length);
           }
-        
-      this.setState({enemy: obj.pos, date: obj.date});
+      this.notMyX.setValue(obj.pos*width-paddleWidth/2);
+      if(oldBlocks != this.serverBlocks) this.forceUpdate();
+      //this.setState({enemy: obj.pos, date: obj.date});
     })
     const movePaddle = (gestureX, gestureState) => {
       const position = new Value(width/2 - paddleWidth/2);
@@ -164,14 +183,6 @@ class App extends Component {
           position
         ]
       )
-    }
-    let ballVelocity = {
-      x: new Value(width*0.8),
-      y: new Value(height*0.4)
-    }
-    let ball = {
-      x: new Value(width/2 - 0.015*width),
-      y: new Value(height/2 - 0.015*width)
     }
     const removeElem = (idx) => {
       if(idx !== 0 && idx !== this.blocks.length-1) {
@@ -284,13 +295,13 @@ class App extends Component {
   render() {
     return (
       <View style={styles.container}>
-        <Animated.Code 
+        {/*<Animated.Code 
           key={this.state.date}
           exec={block([
             set(this.notMyX, this.state.enemy*width-paddleWidth/2),
             this.queuedNode.splice(0).map(elem => set(this.deleted2[elem.node], new Animated.Value(elem.value)))
           ])}
-        />
+        />*/}
         <Modal isVisible={!!this.state.reverseTimer}>
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <Text style={{fontSize: 30}}>{this.state.reverseTimer}</Text>
@@ -310,7 +321,7 @@ class App extends Component {
                         style={[
                           styles.box,
                           {
-                            transform: [{ translateX: (idx === 0 ? this.myPaddleX : this.state.enemy*width-paddleWidth/2) }],
+                            transform: [{ translateX: (idx === 0 ? this.myPaddleX : this.notMyX) }],
                             backgroundColor: (idx === 0 ? '#FF4400' : '#0064FF')
                           }
                         ]}
