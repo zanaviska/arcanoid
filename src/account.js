@@ -10,14 +10,30 @@ export default class Account extends Component {
   state = {
     username: '',
     password: '',
-    spinner: false
+    spinner: false,
+    games: 0,
+    wins: 0
   }
   componentWillMount() {
     this.forceUpdate();
+    this._unsubscribe = this.props.navigation.addListener('focus', () => {
+      console.warn('I am focused');
+      sendReq('login username '+ account.username +' password ' + account.password, (msg)=>{
+        this.setState({spinner: false});
+        console.log('sending is done')
+        console.warn('!', msg);
+        if(msg.status === 'failed') return;
+        account.wins = msg.wins;
+        account.games = msg.games;
+        account.id = msg.id;
+        this.setState({wins: msg.wins, games: msg.games}, () => console.log(this.state));
+      });  
+    });
   }
   render() {
     return (
       <View style={{flex: 1}}>
+        
         <Spinner
           visible={this.state.spinner}
           textContent={'Loading...'}
@@ -35,9 +51,9 @@ export default class Account extends Component {
         </Button>
         <Text />
         <Text>Username: {account.username}</Text>
-        <Text>Win: {account.wins}</Text>
-        <Text>Games: {account.games}</Text>
-        <Text>Percantage: {(account.games ? account.wins/account.games*100 : 0)}%</Text>
+        <Text>Win: {this.state.wins}</Text>
+        <Text>Games: {this.state.games}</Text>
+        <Text>Percantage: {(this.state.games ? this.state.wins/this.state.games*100 : 0)}%</Text>
         <Text />
         <Text />
         <Text />

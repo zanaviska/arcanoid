@@ -2,6 +2,8 @@ import React, {Component} from 'react';
 import { View, Text } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
 
+import { settings, storeData, getData, sendReq, account } from "./settings";
+
 export default class Registration extends Component {
   state = {
     username: '',

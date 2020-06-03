@@ -104,8 +104,8 @@ class App extends Component {
       },
     ]);
     let ballVelocity = {
-      x: new Value(width*0.8),
-      y: new Value(height*0.4)
+      x: new Value(0),
+      y: new Value(0)
     }
     let ball = {
       x: new Value(width/2 - 0.015*width),
@@ -120,8 +120,8 @@ class App extends Component {
       if(lastUpdate > obj.date) return;
       lastUpdate = obj.date
       if(account.id === 1) console.log(obj);
-      ball.x.setValue(obj.x*width - 0.015*width);
-      ball.y.setValue(obj.y*height - 0.015*width);
+      ball.x.setValue(obj.x*width - 0.015*width + obj.vx*width*(obj.date - Date.now())/1000);
+      ball.y.setValue(obj.y*height - 0.015*width + obj.vx*height*(obj.date - Date.now())/1000);
       ballVelocity.x.setValue(obj.vx*width);
       ballVelocity.y.setValue(obj.vy*height);
       const oldBlocks = this.serverBlocks;

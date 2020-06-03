@@ -18,6 +18,7 @@ class Login extends Component {
       account.games = msg.games;
       account.username = username;
       account.id = msg.id;
+      account.password = password;
       if(this.state.checked) {
         storeData('auth', JSON.stringify({username: this.state.username, password: this.state.password}));
       }
