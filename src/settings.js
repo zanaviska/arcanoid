@@ -6,7 +6,7 @@ global.Buffer = global.Buffer || require('buffer').Buffer;
 let settings = {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
-    ip: '192.168.114.121',
+    ip: '172.21.87.63',
     port: 35662
 }
 
@@ -34,6 +34,7 @@ const getData = async (key, callback) => {
 let pending = [];
 const client = dgram.createSocket("udp4");
 client.on('message', (msg, info) => {
+  console.log(msg.toString());
   const obj = JSON.parse(msg.toString());
   const idx = pending.findIndex(elem => obj.date === elem.date);
   //console.warn(obj, idx);

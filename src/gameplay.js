@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { StyleSheet, View, NativeModules, Text, Dimensions } from 'react-native';
+import { StyleSheet, View, NativeModules, Text, Dimensions, Alert } from 'react-native';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import Animated, { block } from 'react-native-reanimated';
 //import dgram from 'react-native-udp';
@@ -117,11 +117,16 @@ class App extends Component {
     let lastUpdate = 0;
     this.client.on('message', (msg, info) => {
       const obj = JSON.parse(msg.toString())
+      if(obj.finished) {
+        Alert.alert("game is ended", "do you want to play again");
+        this.props.navigation.goBack();
+        return;
+      }
       if(lastUpdate > obj.date) return;
       lastUpdate = obj.date
       if(account.id === 1) console.log(obj);
-      ball.x.setValue(obj.x*width - 0.015*width + obj.vx*width*(obj.date - Date.now())/1000);
-      ball.y.setValue(obj.y*height - 0.015*width + obj.vx*height*(obj.date - Date.now())/1000);
+      ball.x.setValue(obj.x*width - 0.015*width/* + obj.vx*width*(obj.date - Date.now())/1000*/);
+      ball.y.setValue(obj.y*height - 0.015*width/* + obj.vx*height*(obj.date - Date.now())/1000*/);
       ballVelocity.x.setValue(obj.vx*width);
       ballVelocity.y.setValue(obj.vy*height);
       const oldBlocks = this.serverBlocks;

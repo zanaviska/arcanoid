@@ -12,16 +12,22 @@ export default class Account extends Component {
     password: '',
     spinner: false,
     games: 0,
-    wins: 0
+    wins: 0,
+    top: [0]
+  }
+  constructor(props) {
+    super(props);
+    this.loadRanting();
   }
   componentWillMount() {
     this.forceUpdate();
     this._unsubscribe = this.props.navigation.addListener('focus', () => {
-      console.warn('I am focused');
+      //console.warn('I am focused');
+      this.loadRanting();
       sendReq('login username '+ account.username +' password ' + account.password, (msg)=>{
         this.setState({spinner: false});
         console.log('sending is done')
-        console.warn('!', msg);
+        //console.warn('!', msg);
         if(msg.status === 'failed') return;
         account.wins = msg.wins;
         account.games = msg.games;
@@ -29,6 +35,12 @@ export default class Account extends Component {
         this.setState({wins: msg.wins, games: msg.games}, () => console.log(this.state));
       });  
     });
+  }
+  loadRanting() {
+    sendReq('rating', (msg) => {
+      console.log(msg.arr);
+      this.setState({top: msg.arr});
+    })
   }
   render() {
     return (
@@ -67,6 +79,26 @@ export default class Account extends Component {
         }}>
           Log out
         </Button>
+        <View style={{width: '100%', flexDirection: 'row', justifyContent: 'space-around'}}>
+          <Text>username</Text>
+          <Text>wins</Text>
+        </View>
+        {
+          this.state.top
+        ?
+          this.state.top.map((elem, idx) => (
+            elem !== 0
+          ?
+            <View style={{width: '100%', flexDirection: 'row', justifyContent: 'space-around'}} key={idx}>
+              <Text>{elem[0]}</Text>
+              <Text>{elem[1]}</Text>
+            </View>
+          :
+            []
+          ))
+        :
+          (this.loadRanting(), <Text style={{alignSelf: 'center'}}>Data not found. Try again later</Text>)
+        }
       </View>
     )
   }
